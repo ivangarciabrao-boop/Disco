@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora NUNC DIES BESTIAE</title>
+    <style>
+        :root { --silver: #C0C0C0; --bg: #1a1a1a; }
+        body { 
+            margin: 0; background: var(--bg); color: white; 
+            font-family: 'Times New Roman', serif; display: flex; 
+            height: 100vh; overflow: hidden;
+        }
+
+        /* PANEL LATERAL */
+        .sidebar {
+            width: 280px; background: #222; padding: 25px;
+            display: flex; flex-direction: column; gap: 15px;
+            border-right: 2px solid var(--silver); box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        h2 { color: var(--silver); font-size: 1rem; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px; }
+
+        .opcion-disco {
+            background: #333; padding: 12px; border-radius: 8px;
+            cursor: pointer; border: 1px solid transparent; transition: 0.3s;
+            text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;
+        }
+
+        .opcion-disco.active { border-color: var(--silver); background: #3d3424; color: var(--silver); }
+
+        /* CONTENEDOR PRINCIPAL */
+        .main-view {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            position: relative; touch-action: none;
+        }
+
+        #wheel-container {
+            position: relative; width: 600px; height: 600px;
+        }
+
+        /* EL TÍTULO SOBRE LA FLECHA */
+        .titulo-superior {
+            position: absolute;
+            top: -60px; /* Ajusta esto para subir o bajar el texto */
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--silver);
+            font-size: 2.2rem;
+            white-space: nowrap;
+            letter-spacing: 0.6rem;
+            text-shadow: 0 0 15px rgba(197, 160, 89, 0.4);
+            font-weight: bold;
+        }
+
+        .flecha-guia {
+            position: absolute; top: -0px; left: 50%; transform: translateX(-50%);
+            font-size: 2.5rem; color: var(--silver); z-index: 200;
+            text-shadow: 0 0 10px var(--silver);
+        }
+
+        .disco {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(0deg);
+            pointer-events: none; 
+            transition: filter 0.3s;
+        }
+
+        .disco.active-ring { filter: drop-shadow(0 0 15px var(--silver)) brightness(1.2); }
+
+        button {
+            background: var(--silver); border: none; padding: 10px; font-weight: bold;
+            cursor: pointer; border-radius: 5px; margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="click-sound" src="click.mp3" preload="auto"></audio>
+
+    <div class="sidebar">
+        <h2>CONTROL DE DISCOS</h2>
+        <div class="opcion-disco active" onclick="selectDisco('d1', this)">Disco 1</div>
+        <div class="opcion-disco" onclick="selectDisco('d2', this)">Disco 2</div>
+        <div class="opcion-disco" onclick="selectDisco('d3', this)">Disco 3</div>
+        <div class="opcion-disco" onclick="selectDisco('d4', this)">Disco 4</div>
+        <div class="opcion-disco" onclick="selectDisco('d5', this)">Disco 5</div>
+        <div class="opcion-disco" onclick="selectDisco('d6', this)">Disco 6</div>
+        <div class="opcion-disco" onclick="selectDisco('d7', this)">Disco 7</div>
+        <button onclick="resetAll()">RESETEAR RUEDA</button>
+    </div>
+
+    <div class="main-view" id="interaction-zone">
+        <div id="wheel-container">
+            <div class="titulo-superior">NUNC DIES BESTIAE</div>
+            <div class="flecha-guia">▲</div>
+
+            <img src="disco1.png" id="d1" class="disco active-ring" style="width: 100%; z-index: 10;">
+            <img src="disco2.png" id="d2" class="disco" style="width: 100%; z-index: 20;">
+            <img src="disco3.png" id="d3" class="disco" style="width: 100%; z-index: 30;">
+            <img src="disco4.png" id="d4" class="disco" style="width: 100%; z-index: 40;">
+            <img src="disco5.png" id="d5" class="disco" style="width: 100%; z-index: 50;">
+            <img src="disco6.png" id="d6" class="disco" style="width: 100%; z-index: 60;">
+            <img src="disco7.png" id="d7" class="disco" style="width: 100%; z-index: 70;">
+        </div>
+    </div>
+
+    <script>
+        let selectedId = 'd1';
+        const angles = { d1:0, d2:0, d3:0, d4:0, d5:0, d6:0, d7:0 };
+        let isDragging = false;
+        let startAngle = 0;
+        let lastSoundAngle = 0;
+
+        const clickSound = document.getElementById('click-sound');
+
+        function playClick() {
+            // Clonamos para que los sonidos se solapen al girar rápido
+            const clone = clickSound.cloneNode();
+            clone.volume = 0.3;
+            clone.play().catch(() => {}); 
+        }
+
+        function selectDisco(id, element) {
+            selectedId = id;
+            document.querySelectorAll('.opcion-disco').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            document.querySelectorAll('.disco').forEach(el => el.classList.remove('active-ring'));
+            document.getElementById(id).classList.add('active-ring');
+        }
+
+        const zone = document.getElementById('interaction-zone');
+        const container = document.getElementById('wheel-container');
+
+        function getAngle(x, y) {
+            const rect = container.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            return Math.atan2(y - centerY, x - centerX) * (180 / Math.PI);
+        }
+
+        const move = (x, y) => {
+            if (!isDragging) return;
+            const currentAngle = getAngle(x, y);
+            let newAngle = currentAngle - startAngle;
+
+            // Sonido cada 5 grados
+            if (Math.abs(newAngle - lastSoundAngle) >= 5) {
+                playClick();
+                lastSoundAngle = newAngle;
+            }
+
+            angles[selectedId] = newAngle;
+            document.getElementById(selectedId).style.transform = `translate(-50%, -50%) rotate(${newAngle}deg)`;
+        };
+
+        zone.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startAngle = getAngle(e.clientX, e.clientY) - angles[selectedId];
+            lastSoundAngle = angles[selectedId];
+        });
+
+        window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        // Soporte móvil
+        zone.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startAngle = getAngle(e.touches[0].clientX, e.touches[0].clientY) - angles[selectedId];
+            lastSoundAngle = angles[selectedId];
+        });
+        window.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            move(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+        window.addEventListener('touchend', () => isDragging = false);
+
+        function resetAll() {
+            Object.keys(angles).forEach(id => {
+                angles[id] = 0;
+                document.getElementById(id).style.transform = `translate(-50%, -50%) rotate(0deg)`;
+            });
+        }
+    </script>
+</body>
+</html>
